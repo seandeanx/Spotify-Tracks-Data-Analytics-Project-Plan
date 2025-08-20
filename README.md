@@ -1,111 +1,93 @@
-🎵 Spotify Data Analytics Project
-📌 Project Overview
+# 🎵 Spotify Data Analytics Project  
 
-This project analyzes a large dataset of Spotify tracks to uncover insights into genre dominance, artist popularity, audio features, mood trends, and track success factors.
-The analysis was done using SQL for data wrangling and Tableau for visualization.
+## 📌 Overview  
+This project explores Spotify track data to understand **music trends, listener behavior, and what makes songs successful**.  
+Using **SQL for data cleaning** and **Tableau for visualization**, the analysis answers 10 business questions about genres, artists, audio features, and track performance.  
 
-The goal: explore what makes tracks popular on Spotify and how different musical attributes influence success.
+👉 [View the Tableau Dashboard](https://public.tableau.com/views/SpotifyDataAnalyticsTrendsinGenreMoodandTrackSuccess/SpotifyMusicTrendsInsights)  
 
-📂 Dataset
+---
 
-Source: Kaggle Spotify Dataset
+## 📂 Dataset  
+- **Source:** Kaggle Spotify Dataset  
+- **Final Cleaned Table:** `spotify_full_view`  
+- **Cleaning Process (SQL):**
+  - Removed duplicates and missing values  
+  - Dropped tracks with 0 popularity  
+  - Standardized audio features for consistency  
 
-Final cleaned dataset: spotify_full_view
+---
 
-Cleaning steps (SQL):
+## 🛠 Tools & Skills  
+- **SQL** – cleaning, wrangling, querying  
+- **Tableau Public** – dashboards, storytelling  
+- **Data Analytics** – identifying patterns & insights  
 
-Removed duplicates and missing key values (track_id, track_name, popularity, etc.)
+---
 
-Excluded tracks with 0 popularity
+## ❓ Business Questions & Insights  
 
-Standardized audio feature values
+### 1. What are the most dominant genres on Spotify?  
+- Genres like **pop, hip hop, and EDM** have the **largest track volume**.  
+- But **volume ≠ popularity** — some smaller genres actually perform better in popularity.  
 
-🔗 SQL Cleaning & Query Script
+### 2. Which genres are most popular on average?  
+- **Pop and hip hop** dominate popularity, not just volume.  
+- Niche genres with fewer songs sometimes score higher in **average popularity**.  
 
-🛠 Tools Used
+### 3. Who are the top 10 artists by track count?  
+- Artists with the **highest number of songs uploaded** (e.g., prolific EDM creators) flood the platform.  
+- Quantity doesn’t always mean success.  
 
-SQL (BigQuery / SQLite) – data wrangling & analysis
+### 4. Who are the top 10 most popular artists?  
+- A different picture emerges: **globally known stars** rank higher by **average popularity**, even with fewer songs.  
+- Shows the difference between **output vs impact**.  
 
-Tableau Public – visualization & storytelling
+### 5. How do explicit vs clean tracks perform?  
+- **Explicit songs** are highly present in hip hop & rap, but popularity is **balanced**.  
+- Clean songs often perform just as well, showing that **lyrics alone don’t decide popularity**.  
 
-GitHub – project documentation
+### 6. How do audio features (danceability, energy, valence) impact popularity?  
+- **Popular tracks** tend to cluster around:  
+  - **High danceability** (great for parties)  
+  - **Medium-high energy** (not too loud, not too soft)  
+  - **Balanced valence** (mix of happy & emotional songs)  
 
-📊 Tableau Dashboard
+### 7. Do audio features differ by popularity buckets?  
+- Yes. **Tracks in the top popularity bucket** consistently have stronger energy/danceability balance.  
+- Lower-popularity tracks often score **too extreme** (too slow/low or too noisy/high).  
 
-All visualizations were built in Tableau and published as a story.
-👉 View the Interactive Dashboard
+### 8. What separates the top 1% of songs from the rest?  
+- The **top 1% hits** usually:  
+  - Have slightly **higher energy & danceability**  
+  - Sit in the **sweet spot of valence (emotion)**  
+- Small tweaks in features can mean the difference between a regular track and a viral hit.  
 
-🔍 Business Questions & Insights
-1. What are the most dominant genres on Spotify based on track count and average popularity?
+### 9. Does speechiness (lyrics-heavy vs instrumental) affect popularity?  
+- **Very high speechiness (like podcasts or spoken word)** = low popularity.  
+- **Medium speechiness (rap, pop with clear vocals)** = higher popularity.  
 
-Pop and hip-hop dominate both in number of tracks and popularity, confirming their global appeal. Emerging genres like EDM also show strong popularity despite fewer tracks.
+### 10. Overall, what drives track success?  
+- Success = **right balance of genre, mood, and audio features**.  
+- Quantity of songs helps visibility, but **quality (features + artist reputation) drives popularity**.  
 
-2. Which artists have consistently high popularity across their discography?
+---
 
-Top artists like Drake and Taylor Swift stand out with high average popularity, reflecting strong fan bases and consistent output.
+## 📊 Dashboards  
 
-3. What audio features (danceability, energy, valence, tempo) correlate most with track popularity?
+The Tableau story is split into **three dashboards**:  
+1. **Genre & Artist Insights** – genre volume, popularity, top artists.  
+2. **Content & Mood Analysis** – explicit vs clean, audio features & popularity.  
+3. **Track Success Factors** – top 1% vs others, speechiness impact.  
 
-Tracks with higher energy and danceability tend to score higher in popularity. Valence (happiness) plays a moderate role, while acousticness is less significant.
+👉 [Explore on Tableau Public](https://public.tableau.com/views/SpotifyDataAnalyticsTrendsinGenreMoodandTrackSuccess/SpotifyMusicTrendsInsights)  
 
-4. Are there differences in popularity between explicit and non-explicit tracks?
+---
 
-Yes — explicit tracks generally have a slight edge in popularity, likely due to alignment with hip-hop/rap where explicit content is common.
+## 📝 Conclusion  
+This project shows how **data + music meet**: genres may flood the platform, but **listener choices, mood, and subtle audio features decide success**. For artists and labels, the sweet spot lies in balancing **energy, emotion, and accessibility**.  
 
-5. How do energy and valence shape the emotional appeal of songs?
+---
 
-Popular songs often balance high energy with positive valence, creating upbeat and engaging listening experiences.
-
-6. How do audio features vary across genres?
-
-EDM/House → High energy, high danceability
-
-Acoustic/Folk → High acousticness, lower energy
-
-Rap → High speechiness, moderate energy
-Different genres clearly align with distinct audio feature profiles.
-
-7. What audio features distinguish the top 1% most popular tracks?
-
-Compared to all others, the top 1% tracks have:
-
-Higher danceability and energy
-
-Lower acousticness and instrumentalness
-
-Slightly higher valence (positivity)
-
-8. Do tracks with high speechiness (spoken-word/rap) perform better?
-
-High speechiness songs are less popular on average.
-
-Medium to low speechiness levels perform best, suggesting fans prefer a blend of lyrics and melody.
-
-9. What characteristics define the top 1% of tracks?
-
-Top 1% songs typically combine:
-
-High danceability (great for parties/playlists)
-
-High energy (keeps engagement strong)
-
-Moderate valence (positive emotion without being overly cheerful)
-
-10. How do tracks with unusually high speechiness perform compared to average?
-
-While rap-heavy tracks exist, extreme speechiness lowers average popularity. Balance is key — lyrical flow works best when paired with musicality.
-
-📌 Key Takeaways
-
-Popularity is driven by a mix of danceability, energy, and balanced emotional tone.
-
-Genres like Pop and Hip-Hop dominate, but niche genres also shine with distinct features.
-
-The top 1% tracks aren’t random — they share clear audio feature patterns.
-
-For artists: focusing on energetic, danceable tracks with positive vibes increases chances of success.
-
-👤 Author
-
-Sangam Thapa
-Business Analytics | Data Analytics & Visualization
+## ⚖️ License  
+This project is shared for **educational purposes only**. Dataset belongs to Spotify/Kaggle.  
