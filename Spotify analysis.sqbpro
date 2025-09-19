@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path=":memory:" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="3"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="100"/><column_width id="3" width="2148"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><table title="dataset" custom_title="0" dock_id="1" table="4,7:maindataset"/><dock_state state="000000ff00000000fd0000000100000002000004fc00000303fc0100000001fb000000160064006f0063006b00420072006f00770073006500310100000000000004fc0000012a00ffffff000004fc0000000000000004000000040000000800000008fc00000000"/><default_encoding codec=""/><browse_table_settings><table schema="main" name="dataset" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_" freeze_columns="0"><sort/><column_widths><column index="1" value="44"/><column index="2" value="168"/><column index="3" value="300"/><column index="4" value="300"/><column index="5" value="300"/><column index="6" value="75"/><column index="7" value="90"/><column index="8" value="56"/><column index="9" value="88"/><column index="10" value="53"/><column index="11" value="31"/><column index="12" value="67"/><column index="13" value="45"/><column index="14" value="89"/><column index="15" value="94"/><column index="16" value="121"/><column index="17" value="61"/><column index="18" value="58"/><column index="19" value="52"/><column index="20" value="106"/><column index="21" value="87"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table></browse_table_settings></tab_browse><tab_sql><sql name="SQL 1*">--1. Clean the data
+DELETE FROM dataset -- delete rows with missing values in key columns
+WHERE 
+track_id IS NULL OR -- no track ID, can’t identify the song
+track_name IS NULL OR -- no track name, incomplete info
+popularity IS NULL OR -- popularity is essential for analysis
+track_genre IS NULL OR -- genre missing, can't categorize
+danceability IS NULL OR -- important audio feature missing
+energy IS NULL OR -- energy is used in mood and hype metrics
+valence IS NULL OR -- valence helps define mood/emotion
+tempo IS NULL; -- tempo is needed for rhythm and beat comparison
+
+DELETE FROM dataset -- remove songs with 0 popularity (probably never played)
+WHERE popularity = 0;
+
+DELETE FROM dataset -- remove duplicate tracks, keep first one
+WHERE rowid NOT IN (
+SELECT MIN(rowid) -- keep the lowest rowid (first record) per track_id
+FROM dataset
+GROUP BY track_id -- group by track_id to identify duplicates
+);
+
+-- 2. Check final row count
+SELECT COUNT(*) AS total_cleaned_rows FROM dataset; -- shows how many rows are left after cleaning
+
+-- 3. Create the enhanced view
+DROP VIEW IF EXISTS spotify_full_view; -- delete the view if it already exists
+
+CREATE VIEW spotify_full_view AS -- create a new view to simplify queries later
+SELECT 
+* , -- include all original columns from the dataset
+ROUND(duration_ms / 60000.0, 2) AS duration_min, -- convert duration from milliseconds to minutes
+
+CASE -- create a new column that describes mood using valence and energy
+WHEN valence &gt;= 0.5 AND energy &gt;= 0.5 THEN 'Happy &amp; Energetic' -- positive and high energy
+WHEN valence &gt;= 0.5 AND energy &lt; 0.5 THEN 'Chill &amp; Happy' -- positive but low energy
+WHEN valence &lt; 0.5 AND energy &gt;= 0.5 THEN 'Dark &amp; Energetic' -- low positivity but high energy
+WHEN valence &lt; 0.5 AND energy &lt; 0.5 THEN 'Sad &amp; Chill' -- low positivity and low energy
+ELSE 'Unknown' -- fallback if values are missing or strange
+END AS mood_category, -- name of the new mood column
+
+CASE -- turn explicit flag into human-readable label
+WHEN explicit = 1 THEN 'Explicit' -- marked explicit
+WHEN explicit = 0 THEN 'Clean' -- marked clean
+ELSE 'Unknown' -- fallback if value is something else
+END AS explicit_label, -- new column for explicit status
+
+CASE -- bucket songs by popularity level
+WHEN popularity &gt;= 80 THEN '🔥 Very Popular' -- top popularity tier
+WHEN popularity &gt;= 60 THEN '👍 Popular' -- medium-high popularity
+WHEN popularity &gt;= 40 THEN '👌 Decent' -- average level popularity
+WHEN popularity &gt;= 20 THEN '😐 Low' -- lower range
+ELSE '🥶 Unknown/Unpopular' -- least popular or unranked
+END AS popularity_bucket, -- new column showing popularity label
+
+LENGTH(artists) - LENGTH(REPLACE(artists, ';', '')) + 1 AS artist_count, -- count number of artists based on how many semicolons are in the string + 1
+
+CASE -- classify songs by their length in minutes
+WHEN duration_ms &lt; 120000 THEN '🧨 Short (&lt;2 min)' -- very short tracks
+WHEN duration_ms &lt; 240000 THEN '🎯 Medium (2-4 min)' -- normal length songs
+ELSE '🎵 Long (&gt;4 min)' -- long duration tracks
+END AS track_length_label, -- label for track length
+
+ROUND((danceability + energy + valence) / 3, 2) AS feature_score, -- simple average of 3 key audio features
+
+ROUND((0.5 * energy + 0.3 * danceability + 0.2 * valence), 2) AS hype_score, -- weighted score with more importance on energy
+
+CASE -- assign a simplified mood type using valence only
+WHEN valence &gt;= 0.7 THEN '😊 Happy' -- high valence
+WHEN valence &gt;= 0.4 THEN '😐 Neutral' -- mid-level valence
+ELSE '😢 Sad' -- low valence
+END AS mood_type, -- column showing simplified mood
+
+CASE -- add a Yes/No flag for high energy
+WHEN energy &gt;= 0.8 THEN 'Yes' -- energetic track
+ELSE 'No' -- not energetic
+END AS high_energy_flag -- final column in the view
+
+FROM dataset; -- all of this is based on the cleaned main dataset
+
+---  4. Business Question #1 — Top Genres
+
+-- A. Top 10 Genres by Number of Tracks
+SELECT 
+track_genre, -- the genre name
+COUNT(*) AS total_tracks -- how many tracks each genre has
+FROM spotify_full_view
+GROUP BY track_genre -- group the dataset by genre
+ORDER BY total_tracks DESC -- sort by the genre with the most songs
+LIMIT 10; -- limit to top 10 genres
+
+-- B. Top 10 Genres by Average Popularity
+SELECT 
+track_genre, -- the genre name
+ROUND(AVG(popularity), 2) AS avg_popularity, -- average popularity score of tracks in the genre
+COUNT(*) AS track_count -- number of tracks used to calculate average
+FROM spotify_full_view
+GROUP BY track_genre -- group by genre
+HAVING COUNT(*) &gt; 10 -- only include genres that have more than 10 tracks
+ORDER BY avg_popularity DESC -- sort by the genre with highest avg popularity
+LIMIT 10; -- limit to top 10
+
+SELECT 
+artists, -- artist name(s)
+ROUND(AVG(popularity), 2) AS avg_popularity, -- average popularity for each artist
+COUNT(*) AS track_count -- number of tracks each artist has
+FROM spotify_full_view
+GROUP BY artists -- group by artist
+HAVING COUNT(*) &gt; 5 -- only include artists with more than 5 tracks
+ORDER BY avg_popularity DESC -- sort by average popularity
+LIMIT 10; -- top 10 most consistently popular artists
+
+--  Group songs into popularity buckets to analyze audio feature patterns
+SELECT 
+popularity_bucket, -- bucket label like 🔥, 👍, etc.
+COUNT(*) AS track_count, -- how many songs fall into each bucket
+ROUND(AVG(danceability), 2) AS avg_danceability, -- average danceability of songs in the bucket
+ROUND(AVG(energy), 2) AS avg_energy, -- average energy
+ROUND(AVG(valence), 2) AS avg_valence, -- average mood
+ROUND(AVG(tempo), 2) AS avg_tempo -- average tempo
+FROM spotify_full_view
+GROUP BY popularity_bucket -- group by bucket
+ORDER BY 
+CASE 
+WHEN popularity_bucket = '🔥 Very Popular' THEN 1 -- custom order so 🔥 comes first
+WHEN popularity_bucket = '👍 Popular' THEN 2
+WHEN popularity_bucket = '👌 Decent' THEN 3
+WHEN popularity_bucket = '😐 Low' THEN 4
+ELSE 5 -- 🥶 or Unknown last
+END;
+
+-- Compare average popularity of Explicit vs Clean tracks
+SELECT 
+explicit_label, -- label whether the track is 'Explicit' or 'Clean'
+COUNT(*) AS track_count, -- number of songs in each category
+ROUND(AVG(popularity), 2) AS avg_popularity, -- average popularity for each group
+ROUND(AVG(danceability), 2) AS avg_danceability, -- average danceability
+ROUND(AVG(energy), 2) AS avg_energy, -- average energy
+ROUND(AVG(valence), 2) AS avg_valence -- average valence (positivity)
+FROM spotify_full_view
+GROUP BY explicit_label -- group by clean/explicit label
+ORDER BY avg_popularity DESC; -- sort by popularity
+
+--  Average valence &amp; energy by genre (with enough songs)
+SELECT 
+track_genre, -- genre name
+COUNT(*) AS track_count, -- number of tracks in the genre
+ROUND(AVG(valence), 2) AS avg_valence, -- avg positivity (mood)
+ROUND(AVG(energy), 2) AS avg_energy -- avg intensity
+FROM spotify_full_view
+GROUP BY track_genre -- group by genre
+HAVING COUNT(*) &gt; 20 -- ignore small genres
+ORDER BY 
+avg_valence DESC, -- happiest first
+avg_energy DESC -- then highest energy
+LIMIT 15; -- top 15 genres
+
+SELECT 
+'Q6 Skipped — No release_year column available in the dataset' AS message; -- can’t do trend analysis without year
+
+--  Business Question #7: Do certain audio features dominate specific genres?
+SELECT 
+track_genre, -- genre name
+COUNT(*) AS track_count, -- total tracks per genre
+ROUND(AVG(danceability), 2) AS avg_danceability, -- avg danceability
+ROUND(AVG(energy), 2) AS avg_energy, -- avg energy
+ROUND(AVG(valence), 2) AS avg_valence, -- avg mood
+ROUND(AVG(acousticness), 2) AS avg_acousticness, -- avg acoustic level
+ROUND(AVG(instrumentalness), 2) AS avg_instrumentalness, -- avg instrumental score
+ROUND(AVG(tempo), 2) AS avg_tempo -- avg speed of tracks
+FROM spotify_full_view
+GROUP BY track_genre -- group by genre
+HAVING COUNT(*) &gt; 20 -- only use genres with enough songs
+ORDER BY track_count DESC; -- sort by most common genre first
+
+--  Business Question #8: Genre clusters based on audio features
+-- (Start of genre profiling using multiple features for later clustering or plotting)
+
+
+SELECT 
+track_genre, -- genre name
+COUNT(*) AS track_count, -- how many tracks in that genre
+ROUND(AVG(danceability), 2) AS avg_danceability, -- average danceability
+ROUND(AVG(energy), 2) AS avg_energy, -- average energy
+ROUND(AVG(valence), 2) AS avg_valence, -- average positivity/mood
+ROUND(AVG(acousticness), 2) AS avg_acousticness, -- average acoustic quality
+ROUND(AVG(instrumentalness), 2) AS avg_instrumentalness, -- how instrumental the genre tends to be
+ROUND(AVG(speechiness), 2) AS avg_speechiness, -- how much speech/talk-like vocals exist
+ROUND(AVG(tempo), 2) AS avg_tempo -- average tempo/speed
+FROM spotify_full_view
+GROUP BY track_genre -- group by genre
+HAVING COUNT(*) &gt; 20 -- only include genres with more than 20 tracks
+ORDER BY track_count DESC; -- most common genres first
+
+--  Business Question #9: Characteristics of the top 1% most popular tracks
+
+-- Step 1: Find the popularity cutoff for the top 1%
+WITH popularity_cutoff AS (
+SELECT 
+ROUND(MAX(popularity) * 0.99, 0) AS cutoff_popularity -- calculate 99% of the highest popularity (top 1%)
+FROM spotify_full_view
+),
+
+-- Step 2: Filter top 1% popular tracks based on that cutoff
+top_tracks AS (
+SELECT * -- select everything
+FROM spotify_full_view
+WHERE popularity &gt;= (SELECT cutoff_popularity FROM popularity_cutoff) -- only tracks at or above the cutoff
+)
+
+-- Step 3: Analyze the characteristics of those top 1% tracks
+SELECT 
+COUNT(*) AS top_track_count, -- how many songs made it to the top 1%
+ROUND(AVG(danceability), 2) AS avg_danceability, -- avg danceability in top tracks
+ROUND(AVG(energy), 2) AS avg_energy, -- avg energy
+ROUND(AVG(valence), 2) AS avg_valence, -- avg mood
+ROUND(AVG(tempo), 2) AS avg_tempo, -- avg tempo
+ROUND(AVG(acousticness), 2) AS avg_acousticness, -- avg acoustic level
+ROUND(AVG(instrumentalness), 2) AS avg_instrumentalness, -- avg instrumental quality
+ROUND(AVG(speechiness), 2) AS avg_speechiness, -- avg spoken-word style
+explicit_label, -- whether it's Explicit or Clean
+mood_category -- mood label based on valence &amp; energy
+FROM top_tracks
+GROUP BY explicit_label, mood_category -- analyze by content label and mood type
+ORDER BY top_track_count DESC; -- show most common combinations first
+
+--  Business Question #10: Compare performance of speechy, instrumental, and acoustic tracks
+
+-- Categorize tracks based on dominant audio trait
+SELECT 
+CASE
+WHEN speechiness &gt;= 0.66 THEN 'Speechy (e.g. Rap, Spoken Word)' -- mostly spoken or rapped
+WHEN instrumentalness &gt;= 0.66 THEN 'Instrumental (e.g. Lo-fi, No vocals)' -- no lyrics or voices
+WHEN acousticness &gt;= 0.66 THEN 'Acoustic (e.g. Unplugged, Folk)' -- natural/acoustic feel
+ELSE 'Other' -- doesn't strongly fall into any single category
+END AS track_type, -- label based on what feature is dominant
+COUNT(*) AS track_count, -- how many songs fall in each type
+ROUND(AVG(popularity), 2) AS avg_popularity, -- average popularity per type
+ROUND(AVG(danceability), 2) AS avg_danceability, -- avg danceability
+ROUND(AVG(energy), 2) AS avg_energy, -- avg energy
+ROUND(AVG(valence), 2) AS avg_valence -- avg positivity/mood
+FROM spotify_full_view
+GROUP BY track_type -- group by the label we defined above
+ORDER BY avg_popularity DESC; -- show the most popular type at the top
+
+-- Final Export Script: Get all cleaned + enhanced data
+SELECT *
+FROM spotify_full_view;
+
+</sql><current_tab id="0"/></tab_sql></sqlb_project>
